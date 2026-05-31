@@ -1,21 +1,39 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { AppProvider, useApp } from './context/AppContext';
+import LockScreen from './components/LockScreen';
 import Dashboard from './pages/Dashboard';
 import Finance from './pages/Finance';
 import Tasks from './pages/Tasks';
 import Goals from './pages/Goals';
+import Payments from './pages/Payments';
+import Settings from './pages/Settings';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { syncing, lastSynced, syncFromSheet, currentMonth, availableMonths, changeMonth, handleCreateMonth } = useApp();
+  const { isLocked, unlock, syncing, lastSynced, syncFromSheet, currentMonth, availableMonths, changeMonth, handleCreateMonth, reminders } = useApp();
   const [showMonthPicker, setShowMonthPicker] = useState(false);
+  const [showReminders, setShowReminders] = useState(false);
   const [newMonthInput, setNewMonthInput] = useState('');
 
+  // Show reminder popup on unlock
+  useEffect(() => {
+    if (!isLocked && reminders.length > 0) {
+      setShowReminders(true);
+    }
+  }, [isLocked, reminders]);
+
+  // If locked, show lock screen
+  if (isLocked) {
+    return <LockScreen onUnlock={unlock} />;
+  }
+
   const tabs = [
-    { id: 'dashboard', label: 'Dashboard', icon: '📊' },
+    { id: 'dashboard', label: 'Home', icon: '📊' },
     { id: 'finance', label: 'Finance', icon: '💰' },
     { id: 'tasks', label: 'Tasks', icon: '✅' },
-    { id: 'goals', label: 'Goals', icon: '🎯' }
+    { id: 'goals', label: 'Goals', icon: '🎯' },
+    { id: 'payments', label: 'Payments', icon: '💸' },
+    { id: 'settings', label: 'Settings', icon: '⚙️' }
   ];
 
   const renderPage = () => {
@@ -24,6 +42,8 @@ function AppContent() {
       case 'finance': return <Finance />;
       case 'tasks': return <Tasks />;
       case 'goals': return <Goals />;
+      case 'payments': return <Payments />;
+      case 'settings': return <Settings />;
       default: return <Dashboard />;
     }
   };
@@ -31,12 +51,11 @@ function AppContent() {
   const generateMonthOptions = () => {
     const months = [];
     const now = new Date();
-    for (let i = -2; i <= 6; i++) {
+    for (let i = -3; i <= 6; i++) {
       const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
       const monthNames = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
       months.push(`${monthNames[d.getMonth()]} ${d.getFullYear()}`);
     }
-    // Merge with available months
     const allMonths = new Set([...months, ...availableMonths]);
     return Array.from(allMonths).sort((a, b) => {
       const parseMonth = (s) => {
@@ -50,34 +69,66 @@ function AppContent() {
 
   return (
     <div className="min-h-screen pb-20 md:pb-0 md:pl-20">
+      {/* Payment Reminder Modal */}
+      {showReminders && reminders.length > 0 && (
+        <div className="fixed inset-0 z-[100] flex items-center justify-center bg-black/70 p-4" onClick={() => setShowReminders(false)}>
+          <div className="glass-card p-6 w-full max-w-sm space-y-4 border-l-4 border-amber-500" onClick={e => e.stopPropagation()}>
+            <div className="flex items-center gap-3">
+              <span className="text-3xl">⚠️</span>
+              <div>
+                <h3 className="text-lg font-bold text-amber-400">Payment Reminder!</h3>
+                <p className="text-xs text-slate-400">These payments are due in next 3 days</p>
+              </div>
+            </div>
+            <div className="space-y-2">
+              {reminders.map(p => (
+                <div key={p.id} className="p-3 rounded-xl bg-slate-800/80 flex items-center justify-between">
+                  <div>
+                    <p className="text-sm text-white font-medium">{p.title}</p>
+                    <p className="text-xs text-slate-400">Due: {new Date(p.dueDate).toLocaleDateString('en-IN')}</p>
+                  </div>
+                  <span className="text-sm font-bold text-orange-400">₹{Number(p.amount).toLocaleString('en-IN')}</span>
+                </div>
+              ))}
+            </div>
+            <button
+              onClick={() => setShowReminders(false)}
+              className="glow-button w-full py-3 rounded-xl text-white font-semibold"
+            >
+              Got it! 👍
+            </button>
+          </div>
+        </div>
+      )}
+
       {/* Header */}
       <header className="sticky top-0 z-40 glass-card border-0 border-b border-indigo-500/20 px-4 py-3 md:px-8">
         <div className="flex items-center justify-between">
           <h1 className="text-xl md:text-2xl font-bold gradient-text">
             ✨ Raj Life
           </h1>
-          <div className="flex items-center gap-2 md:gap-4">
+          <div className="flex items-center gap-2 md:gap-3">
             {/* Month Selector */}
             <button
               onClick={() => setShowMonthPicker(!showMonthPicker)}
-              className="text-xs md:text-sm px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all"
+              className="text-[10px] md:text-sm px-2 md:px-3 py-1.5 rounded-lg bg-indigo-500/20 text-indigo-300 border border-indigo-500/30 hover:bg-indigo-500/30 transition-all"
             >
               📅 {currentMonth}
             </button>
             {/* Sync Button */}
             <button
               onClick={() => syncFromSheet()}
-              className={`text-xs px-2 py-1.5 rounded-lg transition-all ${syncing ? 'bg-amber-500/20 text-amber-300' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'}`}
+              className={`text-xs px-2 py-1.5 rounded-lg transition-all ${syncing ? 'bg-amber-500/20 text-amber-300 animate-pulse' : 'bg-emerald-500/20 text-emerald-300 hover:bg-emerald-500/30'}`}
               disabled={syncing}
+              title={lastSynced ? `Last: ${lastSynced}` : 'Sync'}
             >
               {syncing ? '🔄' : '☁️'}
             </button>
           </div>
         </div>
-        {/* Sync Status */}
         {lastSynced && (
           <p className="text-[10px] text-slate-500 text-right mt-1">
-            Last synced: {lastSynced}
+            Synced: {lastSynced}
           </p>
         )}
       </header>
@@ -105,7 +156,7 @@ function AppContent() {
               ))}
             </div>
             <div className="border-t border-slate-700 pt-3">
-              <p className="text-xs text-slate-400 mb-2">Or create custom month:</p>
+              <p className="text-xs text-slate-400 mb-2">Create new month:</p>
               <div className="flex gap-2">
                 <input
                   type="text"
@@ -124,7 +175,7 @@ function AppContent() {
                   }}
                   className="px-4 py-2 rounded-lg bg-gradient-to-r from-indigo-500 to-purple-600 text-white text-sm font-medium"
                 >
-                  + Add
+                  +
                 </button>
               </div>
             </div>
@@ -139,36 +190,36 @@ function AppContent() {
 
       {/* Bottom Navigation - Mobile */}
       <nav className="fixed bottom-0 left-0 right-0 z-50 glass-card border-0 border-t border-indigo-500/20 md:hidden">
-        <div className="flex justify-around items-center py-2">
+        <div className="flex justify-around items-center py-1.5">
           {tabs.map(tab => (
             <button
               key={tab.id}
               onClick={() => setActiveTab(tab.id)}
-              className={`nav-item flex flex-col items-center py-2 px-3 rounded-xl ${
+              className={`nav-item flex flex-col items-center py-1.5 px-2 rounded-xl ${
                 activeTab === tab.id ? 'active text-white' : 'text-slate-400'
               }`}
             >
-              <span className="text-lg">{tab.icon}</span>
-              <span className="text-[10px] mt-1">{tab.label}</span>
+              <span className="text-base">{tab.icon}</span>
+              <span className="text-[8px] mt-0.5">{tab.label}</span>
             </button>
           ))}
         </div>
       </nav>
 
       {/* Side Navigation - Desktop */}
-      <nav className="hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-20 glass-card border-0 border-r border-indigo-500/20 flex-col items-center py-8 gap-4">
-        <div className="text-2xl mb-6">✨</div>
+      <nav className="hidden md:flex fixed left-0 top-0 bottom-0 z-50 w-20 glass-card border-0 border-r border-indigo-500/20 flex-col items-center py-6 gap-2">
+        <div className="text-2xl mb-4">✨</div>
         {tabs.map(tab => (
           <button
             key={tab.id}
             onClick={() => setActiveTab(tab.id)}
-            className={`nav-item flex flex-col items-center py-3 px-4 rounded-xl ${
+            className={`nav-item flex flex-col items-center py-2.5 px-3 rounded-xl ${
               activeTab === tab.id ? 'active text-white' : 'text-slate-400 hover:text-white'
             }`}
             title={tab.label}
           >
-            <span className="text-xl">{tab.icon}</span>
-            <span className="text-[9px] mt-1">{tab.label}</span>
+            <span className="text-lg">{tab.icon}</span>
+            <span className="text-[8px] mt-0.5">{tab.label}</span>
           </button>
         ))}
       </nav>

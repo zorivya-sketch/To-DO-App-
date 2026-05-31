@@ -5,13 +5,26 @@ const isConfigured = () => {
 };
 
 /**
+ * Helper: fetch with redirect handling for Google Apps Script
+ */
+const gFetch = async (url, options = {}) => {
+  const res = await fetch(url, { ...options, redirect: 'follow' });
+  const text = await res.text();
+  try {
+    return JSON.parse(text);
+  } catch {
+    console.error('Non-JSON response:', text.substring(0, 200));
+    return null;
+  }
+};
+
+/**
  * Setup all sheets with headers (call once)
  */
 export const setupSheets = async () => {
   if (!isConfigured()) return { error: 'Not configured' };
   try {
-    const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=setup`);
-    return await res.json();
+    return await gFetch(`${GOOGLE_SCRIPT_URL}?action=setup`);
   } catch (err) {
     console.error('Setup error:', err);
     return { error: err.message };
@@ -27,9 +40,8 @@ export const getAllData = async (month) => {
     const url = month 
       ? `${GOOGLE_SCRIPT_URL}?action=getAll&month=${encodeURIComponent(month)}`
       : `${GOOGLE_SCRIPT_URL}?action=getAll`;
-    const res = await fetch(url);
-    const json = await res.json();
-    if (json.success) return json.data;
+    const json = await gFetch(url);
+    if (json && json.success) return json.data;
     return null;
   } catch (err) {
     console.error('Fetch error:', err);
@@ -43,12 +55,10 @@ export const getAllData = async (month) => {
 export const addItemToSheet = async (category, item, month) => {
   if (!isConfigured()) return null;
   try {
-    const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=add`, {
+    return await gFetch(`${GOOGLE_SCRIPT_URL}?action=add`, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ category, item, month: month || getCurrentMonth() })
     });
-    return await res.json();
   } catch (err) {
     console.error('Add error:', err);
     return null;
@@ -61,8 +71,7 @@ export const addItemToSheet = async (category, item, month) => {
 export const deleteItemFromSheet = async (category, id) => {
   if (!isConfigured()) return null;
   try {
-    const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=delete&category=${category}&id=${id}`);
-    return await res.json();
+    return await gFetch(`${GOOGLE_SCRIPT_URL}?action=delete&category=${category}&id=${id}`);
   } catch (err) {
     console.error('Delete error:', err);
     return null;
@@ -75,12 +84,10 @@ export const deleteItemFromSheet = async (category, id) => {
 export const updateItemInSheet = async (category, id, updates) => {
   if (!isConfigured()) return null;
   try {
-    const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=update`, {
+    return await gFetch(`${GOOGLE_SCRIPT_URL}?action=update`, {
       method: 'POST',
-      headers: { 'Content-Type': 'text/plain' },
       body: JSON.stringify({ category, id, updates })
     });
-    return await res.json();
   } catch (err) {
     console.error('Update error:', err);
     return null;
@@ -93,9 +100,8 @@ export const updateItemInSheet = async (category, id, updates) => {
 export const getAvailableMonths = async () => {
   if (!isConfigured()) return [getCurrentMonth()];
   try {
-    const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=getMonths`);
-    const json = await res.json();
-    if (json.success) return json.months;
+    const json = await gFetch(`${GOOGLE_SCRIPT_URL}?action=getMonths`);
+    if (json && json.success) return json.months;
     return [getCurrentMonth()];
   } catch (err) {
     console.error('Months error:', err);
@@ -109,8 +115,7 @@ export const getAvailableMonths = async () => {
 export const createNewMonth = async (month) => {
   if (!isConfigured()) return { success: true };
   try {
-    const res = await fetch(`${GOOGLE_SCRIPT_URL}?action=createMonth&month=${encodeURIComponent(month)}`);
-    return await res.json();
+    return await gFetch(`${GOOGLE_SCRIPT_URL}?action=createMonth&month=${encodeURIComponent(month)}`);
   } catch (err) {
     console.error('Create month error:', err);
     return { error: err.message };

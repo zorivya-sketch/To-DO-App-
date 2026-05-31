@@ -21,42 +21,81 @@ const defaultData = {
     otherIncome: []
   },
   tasks: [],
-  goals: []
+  goals: [],
+  payments: []
 };
 
 export function AppProvider({ children }) {
-  const [data, setData] = useState(() => {
-    const saved = localStorage.getItem('rajlife-data');
-    return saved ? JSON.parse(saved) : defaultData;
-  });
+  const [data, setData] = useState(defaultData);
   const [currentMonth, setCurrentMonth] = useState(getCurrentMonth());
   const [availableMonths, setAvailableMonths] = useState([getCurrentMonth()]);
   const [syncing, setSyncing] = useState(false);
   const [lastSynced, setLastSynced] = useState(null);
   const [syncError, setSyncError] = useState(null);
+  const [isLocked, setIsLocked] = useState(true);
+  const [password, setPassword] = useState(() => {
+    return localStorage.getItem('rajlife-password') || '1234';
+  });
+  const [reminders, setReminders] = useState([]);
 
-  // Save to localStorage
+  // Check password on load
   useEffect(() => {
-    localStorage.setItem('rajlife-data', JSON.stringify(data));
-  }, [data]);
-
-  // Initial setup & sync
-  useEffect(() => {
-    const init = async () => {
-      await setupSheets();
-      await syncFromSheet();
-      const months = await getAvailableMonths();
-      setAvailableMonths(months);
-    };
-    init();
+    const savedPass = localStorage.getItem('rajlife-password');
+    if (!savedPass) {
+      localStorage.setItem('rajlife-password', '1234');
+    }
   }, []);
 
-  // Sync from Google Sheets
+  // Save password
+  const changePassword = (newPass) => {
+    setPassword(newPass);
+    localStorage.setItem('rajlife-password', newPass);
+  };
+
+  const unlock = (inputPass) => {
+    if (inputPass === password) {
+      setIsLocked(false);
+      return true;
+    }
+    return false;
+  };
+
+  // Initial setup & sync from Google Sheets
+  useEffect(() => {
+    if (!isLocked) {
+      const init = async () => {
+        await setupSheets();
+        await syncFromSheet();
+        const months = await getAvailableMonths();
+        if (months && months.length > 0) setAvailableMonths(months);
+      };
+      init();
+    }
+  }, [isLocked]);
+
+  // Calculate reminders whenever payments change
+  useEffect(() => {
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+    const threeDaysLater = new Date(today);
+    threeDaysLater.setDate(threeDaysLater.getDate() + 3);
+
+    const upcoming = data.payments.filter(p => {
+      if (p.done) return false;
+      const payDate = new Date(p.dueDate);
+      payDate.setHours(0, 0, 0, 0);
+      return payDate >= today && payDate <= threeDaysLater;
+    });
+    setReminders(upcoming);
+  }, [data.payments]);
+
+  // Sync from Google Sheets - loads ALL data
   const syncFromSheet = useCallback(async (month) => {
     setSyncing(true);
     setSyncError(null);
     try {
-      const sheetData = await getAllData(month || currentMonth);
+      const targetMonth = month || currentMonth;
+      const sheetData = await getAllData(targetMonth);
       if (sheetData) {
         setData({
           finance: {
@@ -67,9 +106,13 @@ export function AppProvider({ children }) {
             otherIncome: sheetData.otherIncome || []
           },
           tasks: sheetData.tasks || [],
-          goals: sheetData.goals || []
+          goals: sheetData.goals || [],
+          payments: sheetData.payments || []
         });
         setLastSynced(new Date().toLocaleTimeString('en-IN'));
+        setSyncError(null);
+      } else {
+        setSyncError('Could not load data');
       }
     } catch (err) {
       setSyncError('Sync failed');
@@ -88,7 +131,7 @@ export function AppProvider({ children }) {
   const handleCreateMonth = async (month) => {
     await createNewMonth(month);
     const months = await getAvailableMonths();
-    setAvailableMonths(months);
+    if (months) setAvailableMonths(months);
     setCurrentMonth(month);
     await syncFromSheet(month);
   };
@@ -103,7 +146,6 @@ export function AppProvider({ children }) {
         [category]: [...prev.finance[category], newItem]
       }
     }));
-    // Sync to Google Sheets
     await addItemToSheet(category, item, currentMonth);
   };
 
@@ -115,7 +157,6 @@ export function AppProvider({ children }) {
         [category]: prev.finance[category].filter(item => item.id !== id)
       }
     }));
-    // Sync to Google Sheets
     await deleteItemFromSheet(category, id);
   };
 
@@ -195,6 +236,39 @@ export function AppProvider({ children }) {
     await deleteItemFromSheet('goals', id);
   };
 
+  // Payment Functions
+  const addPayment = async (payment) => {
+    const newPayment = { ...payment, id: Date.now(), done: false, createdAt: new Date().toISOString(), month: currentMonth };
+    setData(prev => ({
+      ...prev,
+      payments: [...prev.payments, newPayment]
+    }));
+    await addItemToSheet('payments', payment, currentMonth);
+  };
+
+  const togglePayment = async (id) => {
+    let newDone;
+    setData(prev => ({
+      ...prev,
+      payments: prev.payments.map(p => {
+        if (p.id === id) {
+          newDone = !p.done;
+          return { ...p, done: newDone };
+        }
+        return p;
+      })
+    }));
+    await updateItemInSheet('payments', id, { done: newDone });
+  };
+
+  const deletePayment = async (id) => {
+    setData(prev => ({
+      ...prev,
+      payments: prev.payments.filter(p => p.id !== id)
+    }));
+    await deleteItemFromSheet('payments', id);
+  };
+
   return (
     <AppContext.Provider value={{
       data,
@@ -203,6 +277,11 @@ export function AppProvider({ children }) {
       syncing,
       lastSynced,
       syncError,
+      isLocked,
+      reminders,
+      password,
+      unlock,
+      changePassword,
       changeMonth,
       handleCreateMonth,
       syncFromSheet,
@@ -214,7 +293,10 @@ export function AppProvider({ children }) {
       addGoal,
       updateGoalProgress,
       toggleGoal,
-      deleteGoal
+      deleteGoal,
+      addPayment,
+      togglePayment,
+      deletePayment
     }}>
       {children}
     </AppContext.Provider>
