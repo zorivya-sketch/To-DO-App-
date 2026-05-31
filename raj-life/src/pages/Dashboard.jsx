@@ -2,7 +2,7 @@ import React from 'react';
 import { useApp } from '../context/AppContext';
 
 function Dashboard() {
-  const { data } = useApp();
+  const { data, currentMonth, syncing } = useApp();
 
   const totalIncome = [...data.finance.income, ...data.finance.otherIncome]
     .reduce((sum, item) => sum + Number(item.amount), 0);
@@ -20,7 +20,7 @@ function Dashboard() {
   const totalGoals = data.goals.length;
   const completedGoals = data.goals.filter(g => g.done).length;
   const avgGoalProgress = totalGoals > 0
-    ? Math.round(data.goals.reduce((sum, g) => sum + g.progress, 0) / totalGoals)
+    ? Math.round(data.goals.reduce((sum, g) => sum + (g.progress || 0), 0) / totalGoals)
     : 0;
 
   const todayTasks = data.tasks.filter(t => {
@@ -38,6 +38,16 @@ function Dashboard() {
           Namaste, Raj! 🙏
         </h2>
         <p className="text-slate-400">Here's your life at a glance</p>
+        <div className="flex items-center gap-3 mt-2">
+          <span className="text-xs px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300">
+            📅 {currentMonth}
+          </span>
+          {syncing && (
+            <span className="text-xs px-3 py-1 rounded-full bg-amber-500/20 text-amber-300 animate-pulse">
+              🔄 Syncing...
+            </span>
+          )}
+        </div>
       </div>
 
       {/* Finance Summary Cards */}
@@ -120,7 +130,6 @@ function Dashboard() {
               <span className="text-slate-400">Pending</span>
               <span className="font-bold text-amber-400">{pendingTasks}</span>
             </div>
-            {/* Progress Bar */}
             <div className="mt-4">
               <div className="w-full h-3 bg-slate-700 rounded-full overflow-hidden">
                 <div
@@ -153,7 +162,6 @@ function Dashboard() {
               <span className="text-slate-400">In Progress</span>
               <span className="font-bold text-indigo-400">{totalGoals - completedGoals}</span>
             </div>
-            {/* Progress Bar */}
             <div className="mt-4">
               <div className="w-full h-3 bg-slate-700 rounded-full overflow-hidden">
                 <div
@@ -195,10 +203,10 @@ function Dashboard() {
         )}
       </div>
 
-      {/* Quick Stats */}
+      {/* Quick Finance Chart */}
       <div className="glass-card p-5 md:p-6">
         <h3 className="text-lg font-semibold mb-4 flex items-center gap-2">
-          <span>📈</span> Quick Finance Chart
+          <span>📈</span> Finance Chart - {currentMonth}
         </h3>
         <div className="flex flex-wrap gap-4 justify-center">
           {[
@@ -223,6 +231,18 @@ function Dashboard() {
             );
           })}
         </div>
+      </div>
+
+      {/* Google Sheets Link */}
+      <div className="glass-card p-4 text-center">
+        <a 
+          href="https://docs.google.com/spreadsheets/d/1zhZA7C7h2oqoB4PPyvp_ihjXP3UrQRNIlGvTjEwfojk/edit"
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-sm text-indigo-400 hover:text-indigo-300 transition-colors"
+        >
+          📊 View Google Sheet →
+        </a>
       </div>
     </div>
   );
