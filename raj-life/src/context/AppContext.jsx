@@ -7,7 +7,9 @@ import {
   updateItemInSheet,
   getAvailableMonths,
   createNewMonth,
-  setupSheets
+  setupSheets,
+  getPasswordFromSheet,
+  savePasswordToSheet
 } from '../services/googleSheets';
 
 const AppContext = createContext();
@@ -33,23 +35,26 @@ export function AppProvider({ children }) {
   const [lastSynced, setLastSynced] = useState(null);
   const [syncError, setSyncError] = useState(null);
   const [isLocked, setIsLocked] = useState(true);
-  const [password, setPassword] = useState(() => {
-    return localStorage.getItem('rajlife-password') || '1234';
-  });
+  const [password, setPassword] = useState('1234');
+  const [passwordLoaded, setPasswordLoaded] = useState(false);
   const [reminders, setReminders] = useState([]);
 
-  // Check password on load
+  // Load password from Google Sheets on app start
   useEffect(() => {
-    const savedPass = localStorage.getItem('rajlife-password');
-    if (!savedPass) {
-      localStorage.setItem('rajlife-password', '1234');
-    }
+    const loadPassword = async () => {
+      const sheetPass = await getPasswordFromSheet();
+      if (sheetPass) {
+        setPassword(sheetPass);
+      }
+      setPasswordLoaded(true);
+    };
+    loadPassword();
   }, []);
 
-  // Save password
-  const changePassword = (newPass) => {
+  // Change password - save to Google Sheets (works across all devices)
+  const changePassword = async (newPass) => {
     setPassword(newPass);
-    localStorage.setItem('rajlife-password', newPass);
+    await savePasswordToSheet(newPass);
   };
 
   const unlock = (inputPass) => {
@@ -280,6 +285,7 @@ export function AppProvider({ children }) {
       isLocked,
       reminders,
       password,
+      passwordLoaded,
       unlock,
       changePassword,
       changeMonth,

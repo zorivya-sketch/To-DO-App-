@@ -17,10 +17,6 @@ function Settings() {
     setPassError('');
     setPassSuccess('');
 
-    if (passForm.current !== password) {
-      setPassError('Current password is wrong!');
-      return;
-    }
     if (passForm.newPass.length < 4) {
       setPassError('New password must be at least 4 characters');
       return;
@@ -31,9 +27,9 @@ function Settings() {
     }
 
     changePassword(passForm.newPass);
-    setPassSuccess('Password changed successfully! ✅');
+    setPassSuccess('Password changed successfully! Now this password will work on all devices. ✅');
     setPassForm({ current: '', newPass: '', confirm: '' });
-    setTimeout(() => setPassSuccess(''), 3000);
+    setTimeout(() => setPassSuccess(''), 5000);
   };
 
   const handleBackup = () => {
@@ -200,9 +196,17 @@ function Settings() {
           <div className="flex items-center justify-between">
             <div>
               <p className="text-sm text-slate-300">App Lock</p>
-              <p className="text-xs text-slate-500 mt-0.5">Password protected on open</p>
+              <p className="text-xs text-slate-500 mt-0.5">Password synced via Google Sheets (works on all devices)</p>
             </div>
             <span className="text-xs px-3 py-1 rounded-full bg-emerald-500/20 text-emerald-400">🟢 Active</span>
+          </div>
+        </div>
+
+        {/* Show Current Password */}
+        <div className="p-3 rounded-xl bg-indigo-500/10 border border-indigo-500/30">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-slate-300">Current Password:</span>
+            <span className="text-lg font-bold text-indigo-400 tracking-widest">{password}</span>
           </div>
         </div>
 
@@ -279,10 +283,6 @@ function Settings() {
           <div className="flex justify-between items-center p-2">
             <span className="text-sm text-slate-400">Storage</span>
             <span className="text-sm text-emerald-400">Google Sheets + Local</span>
-          </div>
-          <div className="flex justify-between items-center p-2">
-            <span className="text-sm text-slate-400">Default Password</span>
-            <span className="text-sm text-amber-400">1234</span>
           </div>
         </div>
       </div>

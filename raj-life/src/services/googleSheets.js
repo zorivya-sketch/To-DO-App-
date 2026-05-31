@@ -121,3 +121,31 @@ export const createNewMonth = async (month) => {
     return { error: err.message };
   }
 };
+
+/**
+ * Get password from Google Sheets
+ */
+export const getPasswordFromSheet = async () => {
+  if (!isConfigured()) return null;
+  try {
+    const json = await gFetch(`${GOOGLE_SCRIPT_URL}?action=getPassword`);
+    if (json && json.success) return json.password;
+    return null;
+  } catch (err) {
+    console.error('Get password error:', err);
+    return null;
+  }
+};
+
+/**
+ * Save password to Google Sheets
+ */
+export const savePasswordToSheet = async (password) => {
+  if (!isConfigured()) return null;
+  try {
+    return await gFetch(`${GOOGLE_SCRIPT_URL}?action=setPassword&password=${encodeURIComponent(password)}`);
+  } catch (err) {
+    console.error('Save password error:', err);
+    return null;
+  }
+};

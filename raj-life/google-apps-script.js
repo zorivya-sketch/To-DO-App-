@@ -49,6 +49,8 @@ function handleRequest(e) {
         const updateData = JSON.parse(e.postData.contents);
         result = updateItem(updateData.category, updateData.id, updateData.updates); break;
       case 'getMonths': result = getAvailableMonths(); break;
+      case 'getPassword': result = getPassword(); break;
+      case 'setPassword': result = setPasswordFunc(params.password); break;
       default: result = { error: 'Unknown action' };
     }
     return ContentService.createTextOutput(JSON.stringify(result)).setMimeType(ContentService.MimeType.JSON);
@@ -198,4 +200,56 @@ function getCurrentMonth() {
   const now = new Date();
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   return months[now.getMonth()] + ' ' + now.getFullYear();
+}
+
+
+
+/**
+ * Get password from Settings sheet
+ */
+function getPassword() {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('Settings');
+  if (!sheet) {
+    sheet = ss.insertSheet('Settings');
+    sheet.getRange(1, 1, 1, 2).setValues([['Key', 'Value']]);
+    sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#6366f1').setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+    sheet.appendRow(['password', '1234']);
+    return { success: true, password: '1234' };
+  }
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'password') {
+      return { success: true, password: String(data[i][1]) };
+    }
+  }
+  // If no password row exists, create one
+  sheet.appendRow(['password', '1234']);
+  return { success: true, password: '1234' };
+}
+
+/**
+ * Set/update password in Settings sheet
+ */
+function setPasswordFunc(newPassword) {
+  const ss = SpreadsheetApp.openById(SPREADSHEET_ID);
+  let sheet = ss.getSheetByName('Settings');
+  if (!sheet) {
+    sheet = ss.insertSheet('Settings');
+    sheet.getRange(1, 1, 1, 2).setValues([['Key', 'Value']]);
+    sheet.getRange(1, 1, 1, 2).setFontWeight('bold').setBackground('#6366f1').setFontColor('#ffffff');
+    sheet.setFrozenRows(1);
+    sheet.appendRow(['password', newPassword]);
+    return { success: true, message: 'Password set' };
+  }
+  const data = sheet.getDataRange().getValues();
+  for (let i = 1; i < data.length; i++) {
+    if (data[i][0] === 'password') {
+      sheet.getRange(i + 1, 2).setValue(newPassword);
+      return { success: true, message: 'Password updated' };
+    }
+  }
+  sheet.appendRow(['password', newPassword]);
+  return { success: true, message: 'Password set' };
 }

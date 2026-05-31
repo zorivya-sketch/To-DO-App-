@@ -10,7 +10,7 @@ import Settings from './pages/Settings';
 
 function AppContent() {
   const [activeTab, setActiveTab] = useState('dashboard');
-  const { isLocked, unlock, syncing, lastSynced, syncFromSheet, currentMonth, availableMonths, changeMonth, handleCreateMonth, reminders } = useApp();
+  const { isLocked, unlock, syncing, lastSynced, syncFromSheet, currentMonth, availableMonths, changeMonth, handleCreateMonth, reminders, password, passwordLoaded } = useApp();
   const [showMonthPicker, setShowMonthPicker] = useState(false);
   const [showReminders, setShowReminders] = useState(false);
   const [newMonthInput, setNewMonthInput] = useState('');
@@ -24,7 +24,7 @@ function AppContent() {
 
   // If locked, show lock screen
   if (isLocked) {
-    return <LockScreen onUnlock={unlock} />;
+    return <LockScreen onUnlock={unlock} currentPassword={password} />;
   }
 
   const tabs = [

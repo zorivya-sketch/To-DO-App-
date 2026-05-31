@@ -1,9 +1,10 @@
 import React, { useState } from 'react';
 
-function LockScreen({ onUnlock }) {
+function LockScreen({ onUnlock, currentPassword }) {
   const [pin, setPin] = useState('');
   const [error, setError] = useState('');
   const [shake, setShake] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -64,7 +65,7 @@ function LockScreen({ onUnlock }) {
           <p className="text-center text-red-400 text-sm animate-pulse">🔴 {error}</p>
         )}
 
-        {/* Input (hidden but functional for paste/autofill) */}
+        {/* Input */}
         <form onSubmit={handleSubmit} className="space-y-4">
           <input
             type="password"
@@ -119,10 +120,21 @@ function LockScreen({ onUnlock }) {
           </button>
         </form>
 
-        {/* Hint */}
-        <p className="text-center text-slate-600 text-xs">
-          Default password: 1234
-        </p>
+        {/* Show Password Toggle */}
+        <div className="text-center space-y-2">
+          <button
+            onClick={() => setShowPassword(!showPassword)}
+            className="text-xs text-slate-500 hover:text-slate-400 transition-colors"
+          >
+            {showPassword ? '🙈 Hide Password' : '👁️ Show Password'}
+          </button>
+          {showPassword && (
+            <div className="p-3 rounded-xl bg-slate-800/60 border border-slate-700">
+              <p className="text-xs text-slate-400">Current Password:</p>
+              <p className="text-lg font-bold text-indigo-400 tracking-widest mt-1">{currentPassword}</p>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* Custom animation style */}
